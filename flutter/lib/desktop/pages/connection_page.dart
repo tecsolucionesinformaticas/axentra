@@ -326,11 +326,12 @@ class _ConnectionPageState extends State<ConnectionPage>
   }
 
   /// Callback for the connect button.
-  /// Connects to the selected peer.
+  /// Connects to the selected peer. Requires login.
   void onConnect(
       {bool isFileTransfer = false,
       bool isViewCamera = false,
       bool isTerminal = false}) {
+    if (!gFFI.userModel.isLogin) return;
     var id = _idController.id;
     connect(context, id,
         isFileTransfer: isFileTransfer,
@@ -438,7 +439,7 @@ class _ConnectionPageState extends State<ConnectionPage>
                             _idController.id = v;
                           },
                           onSubmitted: (_) {
-                            onConnect();
+                            if (gFFI.userModel.isLogin) onConnect();
                           },
                         ).workaroundFreezeLinuxMint());
                   },
@@ -517,12 +518,11 @@ class _ConnectionPageState extends State<ConnectionPage>
               child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 SizedBox(
                   height: 28.0,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      onConnect();
-                    },
+                  child: Obx(() => ElevatedButton(
+                    onPressed:
+                        gFFI.userModel.isLogin ? () => onConnect() : null,
                     child: Text(translate("Connect")),
-                  ),
+                  )),
                 ),
                 const SizedBox(width: 8),
                 Container(

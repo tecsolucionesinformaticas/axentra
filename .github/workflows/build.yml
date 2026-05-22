@@ -1,0 +1,482 @@
+name: Build TecsiDesk
+
+on:
+  push:
+    branches: [tecsi-custom]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Plataformas a compilar (linux, windows, android — separadas por coma)'
+        required: false
+        default: 'linux,windows,android'
+
+# ─── Variables globales ───────────────────────────────────────────────────────
+env:
+  RUST_VERSION:     "1.75.0"
+  FLUTTER_VERSION:  "3.24.5"
+  # Servidor de relay de producción (HTTPS/dominio público)
+  # Para compilar contra el servidor local, cambiar a 192.168.50.90
+  RELAY_HOST:       "axentra.tecsi.com.ar"
+  RS_PUB_KEY:       "VLa5UxjSXPkamb9GobGprrAYiTDaELHqppLKeOPI+Yg="
+  APP_NAME:         "Axentra"
+  LLVM_VERSION:     "15.0"
+  # vcpkg commit fijo para reproducibilidad (vcpkg 2025.08.27)
+  VCPKG_COMMIT:     "120deac3062162151622ca4860575a33844ba10b"
+  # Node.js 24 opt-in (obligatorio desde 2 jun 2026, eliminado en sep 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ─── GENERATE BRIDGE FILES ──────────────────────────────────────────────────
+  generate-bridge:
+    name: Generate Flutter-Rust Bridge
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake curl gcc git g++ \
+            libclang-dev libgtk-3-dev llvm-dev \
+            nasm ninja-build pkg-config wget
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: bridge-ubuntu
+
+      - name: Install Flutter 3.22.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.3"
+          cache: true
+
+      - name: Install flutter_rust_bridge_codegen
+        run: |
+          cargo install cargo-expand --version 1.0.95 --locked
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --features "uuid" --locked
+          pushd flutter && sed -i -e 's/extended_text: 14.0.0/extended_text: 13.0.0/g' pubspec.yaml && flutter pub get && popd
+
+      - name: Run flutter_rust_bridge_codegen
+        run: |
+          ~/.cargo/bin/flutter_rust_bridge_codegen \
+            --rust-input ./src/flutter_ffi.rs \
+            --dart-output ./flutter/lib/generated_bridge.dart \
+            --c-output ./flutter/macos/Runner/bridge_generated.h
+          cp ./flutter/macos/Runner/bridge_generated.h ./flutter/ios/Runner/bridge_generated.h
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bridge-artifact
+          path: |
+            ./src/bridge_generated.rs
+            ./src/bridge_generated.io.rs
+            ./flutter/lib/generated_bridge.dart
+            ./flutter/lib/generated_bridge.freezed.dart
+            ./flutter/macos/Runner/bridge_generated.h
+            ./flutter/ios/Runner/bridge_generated.h
+
+  # ─── LINUX x64 ─────────────────────────────────────────────────────────────
+  build-linux:
+    name: Linux x64
+    needs: [generate-bridge]
+    if: ${{ github.event_name != 'workflow_dispatch' || contains(github.event.inputs.platforms, 'linux') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v7
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake curl gcc-multilib git g++ g++-multilib \
+            libayatana-appindicator3-dev libasound2-dev libc6-dev libclang-dev \
+            libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libgtk-3-dev libpam0g-dev libpulse-dev libva-dev \
+            libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxdo-dev libxfixes-dev llvm-dev nasm ninja-build \
+            pkg-config python3 python3-pip tree wget zip
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: linux-vcpkg-${{ env.VCPKG_COMMIT }}
+
+      - name: Install vcpkg dependencies
+        run: |
+          if ! $VCPKG_ROOT/vcpkg install \
+            --triplet x64-linux-release \
+            --x-install-root="$VCPKG_ROOT/installed"; then
+            find "${VCPKG_ROOT}/" -name "*.log" | while read -r f; do echo "$f:"; cat "$f"; done
+            exit 1
+          fi
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Inject branding
+        run: |
+          # Servidor de rendezvous y clave pública en hbb_common
+          sed -i 's/"rs-ny\.rustdesk\.com"/"${{ env.RELAY_HOST }}"/g' libs/hbb_common/src/config.rs
+          sed -i 's/OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=/${{ env.RS_PUB_KEY }}/g' libs/hbb_common/src/config.rs
+          # Nombre de la app
+          sed -i 's/RwLock::new("RustDesk"\.to_owned())/RwLock::new("${{ env.APP_NAME }}".to_owned())/g' libs/hbb_common/src/config.rs
+          # Default api-server (usa Python para reemplazo multilínea seguro)
+          python3 -c 'f="libs/hbb_common/src/config.rs"; c=open(f).read(); old="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();"; new="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {\n        let mut m = HashMap::new();\n        m.insert(\"api-server\".to_string(), \"https://${{ env.RELAY_HOST }}\".to_string());\n        RwLock::new(m)\n    };"; open(f,"w").write(c.replace(old,new,1))'
+          # Variables para el build
+          echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" >> $GITHUB_ENV
+          echo "RS_PUB_KEY=${{ env.RS_PUB_KEY }}" >> $GITHUB_ENV
+
+      - name: Build Linux
+        env:
+          VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+          CUSTOM_SERVER: ${{ env.RELAY_HOST }}
+          RS_PUB_KEY:    ${{ env.RS_PUB_KEY }}
+        run: python3 build.py --flutter --hwcodec
+
+      - name: Rename binary
+        run: |
+          mkdir -p output
+          DEB=$(ls rustdesk-*.deb 2>/dev/null | head -1)
+          if [ -z "$DEB" ]; then
+            echo "ERROR: no .deb found in root directory"
+            ls -la
+            exit 1
+          fi
+          cp "$DEB" output/${{ env.APP_NAME }}-linux-x64.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APP_NAME }}-linux-x64
+          path: output/
+          retention-days: 14
+
+  # ─── WINDOWS x64 ───────────────────────────────────────────────────────────
+  build-windows:
+    name: Windows x64
+    needs: [generate-bridge]
+    if: ${{ github.event_name != 'workflow_dispatch' || contains(github.event.inputs.platforms, 'windows') }}
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v7
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust ${{ env.RUST_VERSION }} (MSVC)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}-x86_64-pc-windows-msvc
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-cargo-
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: ${{ env.LLVM_VERSION }}
+
+      - name: Install NASM
+        run: choco install nasm -y --no-progress
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.VCPKG_ROOT }}\installed
+          key: windows-vcpkg-${{ env.VCPKG_COMMIT }}
+
+      - name: Install vcpkg dependencies
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg" install `
+            --triplet x64-windows-static `
+            "--x-install-root=$env:VCPKG_ROOT\installed"
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Inject branding
+        shell: pwsh
+        run: |
+          $cfg = Get-Content libs\hbb_common\src\config.rs -Raw
+          $cfg = $cfg -replace '"rs-ny\.rustdesk\.com"', '"${{ env.RELAY_HOST }}"'
+          $cfg = $cfg -replace [regex]::Escape('OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw='), '${{ env.RS_PUB_KEY }}'
+          $cfg = $cfg -replace [regex]::Escape('RwLock::new("RustDesk".to_owned())'), 'RwLock::new("${{ env.APP_NAME }}".to_owned())'
+          # Default api-server
+          $old = "    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();"
+          $new = "    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {`n        let mut m = HashMap::new();`n        m.insert(`"api-server`".to_string(), `"https://${{ env.RELAY_HOST }}`".to_string());`n        RwLock::new(m)`n    };"
+          $cfg = $cfg.Replace($old, $new)
+          Set-Content libs\hbb_common\src\config.rs $cfg
+          echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "RS_PUB_KEY=${{ env.RS_PUB_KEY }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build Windows
+        env:
+          VCPKG_ROOT:    ${{ env.VCPKG_ROOT }}
+          CUSTOM_SERVER: ${{ env.RELAY_HOST }}
+          RS_PUB_KEY:    ${{ env.RS_PUB_KEY }}
+        run: python build.py --flutter
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path output
+          # El portable packer genera rustdesk-VERSION-install.exe en el root
+          $installer = Get-ChildItem rustdesk-*-install.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($installer) {
+            Copy-Item $installer.FullName output\${{ env.APP_NAME }}-windows-x64-install.exe
+            Write-Host "Installer: $($installer.Name)"
+          } else {
+            # Fallback: empaquetar el bundle de Flutter
+            $bundle = "flutter\build\windows\x64\runner\Release"
+            if (Test-Path $bundle) {
+              Compress-Archive -Path "$bundle\*" -DestinationPath "output\${{ env.APP_NAME }}-windows-x64.zip" -Force
+              Write-Host "Bundle empaquetado"
+            } else {
+              Write-Error "No se encontró output del build de Windows"
+              exit 1
+            }
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APP_NAME }}-windows-x64
+          path: output\
+          retention-days: 14
+
+  # ─── ANDROID APK ───────────────────────────────────────────────────────────
+  build-android:
+    name: Android APK
+    needs: [generate-bridge]
+    if: ${{ github.event_name != 'workflow_dispatch' || contains(github.event.inputs.platforms, 'android') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v7
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            zip g++ gcc git curl wget cmake make \
+            libclang-dev ninja-build nasm python3 python3-pip
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Rust + Android targets
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: >-
+            aarch64-linux-android,
+            armv7-linux-androideabi,
+            i686-linux-android,
+            x86_64-linux-android
+
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: android-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: android-cargo-
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --version "^3" --locked
+
+      - name: Setup Android NDK r25c
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25c
+          add-to-path: true
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v5
+        with:
+          path: ~/.gradle/caches
+          key: android-gradle-${{ hashFiles('flutter/android/build.gradle') }}
+          restore-keys: android-gradle-
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Install vcpkg Android deps
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          chmod +x flutter/build_android_deps.sh
+          if ! ./flutter/build_android_deps.sh arm64-v8a; then
+            find "${VCPKG_ROOT}/" -name "*.log" | while read -r f; do echo "$f:"; cat "$f"; done
+            exit 1
+          fi
+
+      - name: Inject branding
+        run: |
+          # Servidor y clave en hbb_common
+          sed -i 's/"rs-ny\.rustdesk\.com"/"${{ env.RELAY_HOST }}"/g' libs/hbb_common/src/config.rs
+          sed -i 's/OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=/${{ env.RS_PUB_KEY }}/g' libs/hbb_common/src/config.rs
+          sed -i 's/RwLock::new("RustDesk"\.to_owned())/RwLock::new("${{ env.APP_NAME }}".to_owned())/g' libs/hbb_common/src/config.rs
+          # Nombre en Android
+          sed -i 's/android:label="RustDesk"/android:label="${{ env.APP_NAME }}"/g' flutter/android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="RustDesk Input"/android:label="${{ env.APP_NAME }} Input"/g' flutter/android/app/src/main/AndroidManifest.xml
+          # Default api-server (usa Python para reemplazo multilínea seguro)
+          python3 -c 'f="libs/hbb_common/src/config.rs"; c=open(f).read(); old="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();"; new="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {\n        let mut m = HashMap::new();\n        m.insert(\"api-server\".to_string(), \"https://${{ env.RELAY_HOST }}\".to_string());\n        RwLock::new(m)\n    };"; open(f,"w").write(c.replace(old,new,1))'
+          echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" >> $GITHUB_ENV
+          echo "RS_PUB_KEY=${{ env.RS_PUB_KEY }}" >> $GITHUB_ENV
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64:   ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/axentra-release.jks
+          # PKCS12: storePassword y keyPassword son la misma clave
+          cat > flutter/android/key.properties << EOF
+          storePassword=${KEYSTORE_PASSWORD}
+          keyPassword=${KEYSTORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          storeFile=/tmp/axentra-release.jks
+          EOF
+
+      - name: Build Android APK
+        env:
+          VCPKG_ROOT:       ${{ env.VCPKG_ROOT }}
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+          CUSTOM_SERVER:    ${{ env.RELAY_HOST }}
+          RS_PUB_KEY:       ${{ env.RS_PUB_KEY }}
+          # Bindgen necesita el sysroot del NDK para no usar headers de glibc del host
+          BINDGEN_EXTRA_CLANG_ARGS: >-
+            --sysroot=${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot
+            --target=aarch64-linux-android21
+        run: |
+          # Compilar librería Rust para arm64 sin hwcodec (evita conflictos de cross-compilation)
+          cargo ndk --platform 21 --target aarch64-linux-android build --release --features flutter
+          mkdir -p flutter/android/app/src/main/jniLibs/arm64-v8a
+          cp target/aarch64-linux-android/release/liblibrustdesk.so \
+             flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
+          cd flutter && flutter pub get && flutter build apk --release
+
+      - name: Rename APK
+        run: |
+          mkdir -p output
+          cp flutter/build/app/outputs/flutter-apk/app-release.apk \
+             output/${{ env.APP_NAME }}-android.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APP_NAME }}-android
+          path: output/
+          retention-days: 14
+
+  # ─── GITHUB RELEASE (solo en tags v*) ──────────────────────────────────────
+  release:
+    name: Create Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ env.APP_NAME }} ${{ github.ref_name }}"
+          body: |
+            ## ${{ env.APP_NAME }} ${{ github.ref_name }}
+            Servidor: `${{ env.RELAY_HOST }}`
+          files: |
+            artifacts/${{ env.APP_NAME }}-linux-x64/${{ env.APP_NAME }}-linux-x64
+            artifacts/${{ env.APP_NAME }}-windows-x64/*.exe
+            artifacts/${{ env.APP_NAME }}-android/${{ env.APP_NAME }}-android.apk
+          draft: false
+          prerelease: false

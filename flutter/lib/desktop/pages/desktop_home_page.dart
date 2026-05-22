@@ -390,6 +390,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   buildTip(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
+    final RxBool settingsHover = false.obs;
     return Padding(
       padding:
           const EdgeInsets.only(left: 20.0, right: 16, top: 16.0, bottom: 5),
@@ -400,12 +402,33 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           Column(
             children: [
               if (!isOutgoingOnly)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    translate("Your Desktop"),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      translate("Your Desktop"),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    if (!bind.isDisableSettings())
+                      InkWell(
+                        child: Tooltip(
+                          message: translate('Settings'),
+                          child: Obx(
+                            () => Icon(
+                              Icons.settings_outlined,
+                              size: 20,
+                              color: settingsHover.value
+                                  ? textColor
+                                  : Colors.grey.withOpacity(0.5),
+                            ),
+                          ),
+                        ),
+                        onTap: () => DesktopSettingPage.switch2page(
+                            SettingsTabKey.general),
+                        onHover: (value) => settingsHover.value = value,
+                      ),
+                  ],
                 ),
             ],
           ),
