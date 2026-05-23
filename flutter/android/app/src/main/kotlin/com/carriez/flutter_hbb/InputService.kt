@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 /**
  * Handle remote input and dispatch android gesture
@@ -739,3 +739,4 @@ class InputService : AccessibilityService() {
 
     override fun onInterrupt() {}
 }
+

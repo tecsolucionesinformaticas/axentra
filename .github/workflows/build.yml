@@ -185,7 +185,7 @@ jobs:
       - name: Rename binary
         run: |
           mkdir -p output
-          DEB=$(ls rustdesk-*.deb 2>/dev/null | head -1)
+          DEB=$(ls axentra-*.deb 2>/dev/null | head -1); if [ -z "$DEB" ]; then DEB=$(ls rustdesk-*.deb 2>/dev/null | head -1); fi
           if [ -z "$DEB" ]; then
             echo "ERROR: no .deb found in root directory"
             ls -la
@@ -274,6 +274,8 @@ jobs:
           $new = "    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {`n        let mut m = HashMap::new();`n        m.insert(`"api-server`".to_string(), `"https://${{ env.RELAY_HOST }}`".to_string());`n        RwLock::new(m)`n    };"
           $cfg = $cfg.Replace($old, $new)
           Set-Content libs\hbb_common\src\config.rs $cfg
+          # Reemplazar ícono con el de Axentra
+          Copy-Item res\icon.ico flutter\windows\runner\resources\app_icon.ico -Force
           echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "RS_PUB_KEY=${{ env.RS_PUB_KEY }}" | Out-File -FilePath $env:GITHUB_ENV -Append
 
@@ -288,8 +290,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path output
-          # El portable packer genera rustdesk-VERSION-install.exe en el root
-          $installer = Get-ChildItem rustdesk-*-install.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          # El portable packer genera Axentra-VERSION-install.exe en el root
+          $installer = Get-ChildItem Axentra-*-install.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($installer) {
             Copy-Item $installer.FullName output\${{ env.APP_NAME }}-windows-x64-install.exe
             Write-Host "Installer: $($installer.Name)"
@@ -418,9 +420,14 @@ jobs:
           sed -i 's/"rs-ny\.rustdesk\.com"/"${{ env.RELAY_HOST }}"/g' libs/hbb_common/src/config.rs
           sed -i 's/OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=/${{ env.RS_PUB_KEY }}/g' libs/hbb_common/src/config.rs
           sed -i 's/RwLock::new("RustDesk"\.to_owned())/RwLock::new("${{ env.APP_NAME }}".to_owned())/g' libs/hbb_common/src/config.rs
-          # Nombre en Android
+          # Nombre e icono en Android
           sed -i 's/android:label="RustDesk"/android:label="${{ env.APP_NAME }}"/g' flutter/android/app/src/main/AndroidManifest.xml
           sed -i 's/android:label="RustDesk Input"/android:label="${{ env.APP_NAME }} Input"/g' flutter/android/app/src/main/AndroidManifest.xml
+          cp res/icon.png flutter/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp res/icon.png flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp res/icon.png flutter/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp res/icon.png flutter/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp res/icon.png flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           # Default api-server (usa Python para reemplazo multilínea seguro)
           python3 -c 'f="libs/hbb_common/src/config.rs"; c=open(f).read(); old="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();"; new="    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {\n        let mut m = HashMap::new();\n        m.insert(\"api-server\".to_string(), \"https://${{ env.RELAY_HOST }}\".to_string());\n        RwLock::new(m)\n    };"; open(f,"w").write(c.replace(old,new,1))'
           echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" >> $GITHUB_ENV
@@ -439,7 +446,7 @@ jobs:
               -alias "$KEY_ALIAS" \
               -keyalg RSA -keysize 2048 -validity 36500 \
               -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
-              -dname "CN=Axentra, O=TecSolucionesInformaticas, C=AR"
+              -dname "CN=Axentra, O=TEC Soluciones Informaticas, OU=TECsi, C=AR"
             B64=$(base64 -w 0 /tmp/axentra-release.jks)
             echo "## Primer build: guarda el keystore como KEYSTORE_BASE64 en GitHub Secrets" >> $GITHUB_STEP_SUMMARY
             echo "Copia este valor y guardalo como secret \`KEYSTORE_BASE64\` para que futuros builds reusen la misma clave:" >> $GITHUB_STEP_SUMMARY
@@ -514,3 +521,4 @@ jobs:
             artifacts/${{ env.APP_NAME }}-android/${{ env.APP_NAME }}-android.apk
           draft: false
           prerelease: false
+

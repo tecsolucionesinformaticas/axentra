@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 import android.app.Application
 import android.util.Log
@@ -15,3 +15,4 @@ class MainApplication : Application() {
         FFI.onAppStart(applicationContext)
     }
 }
+

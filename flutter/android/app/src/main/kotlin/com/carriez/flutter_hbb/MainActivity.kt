@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 /**
  * Handle events from flutter
@@ -412,3 +412,4 @@ class MainActivity : FlutterActivity() {
         stopService(Intent(this, FloatingWindowService::class.java))
     }
 }
+

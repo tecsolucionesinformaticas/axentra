@@ -1228,8 +1228,8 @@ pub fn portable_service_logon_helper_paths() -> Option<(PathBuf, PathBuf)> {
         .home_dir()
         .join("AppData")
         .join("Local")
-        .join("rustdesk-sciter");
-    let dst = dir.join("rustdesk.exe");
+        .join("axentra-sciter");
+    let dst = dir.join("Axentra.exe");
     Some((dir, dst))
 }
 
@@ -1972,8 +1972,8 @@ fn get_public_base_dir() -> PathBuf {
 #[inline]
 pub fn get_custom_client_staging_dir() -> PathBuf {
     get_public_base_dir()
-        .join("RustDesk")
-        .join("RustDeskCustomClientStaging")
+    .join("Axentra")
+    .join("AxentraCustomClientStaging")
 }
 
 /// Removes the custom client staging directory.
@@ -4671,3 +4671,4 @@ ProcessId=10136
         assert_eq!(pids.len(), 0);
     }
 }
+

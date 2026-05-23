@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 import ffi.FFI
 
@@ -727,3 +727,4 @@ class MainService : Service() {
         notificationManager.notify(DEFAULT_NOTIFY_ID, notification)
     }
 }
+

@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 import java.nio.ByteBuffer
 import java.util.Timer
@@ -195,3 +195,4 @@ class RdClipboardManager(private val clipboardManager: ClipboardManager) {
         clipboardManager.setPrimaryClip(clipData)
     }
 }
+

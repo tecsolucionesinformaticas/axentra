@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.tecsi.axentra
 
 import ffi.FFI
 
@@ -197,3 +197,4 @@ class AudioRecordHandle(private var context: Context, private var isVideoStart: 
         audioThread?.join()
     }
 }
+
