@@ -408,14 +408,30 @@ jobs:
           echo "CUSTOM_SERVER=${{ env.RELAY_HOST }}" >> $GITHUB_ENV
           echo "RS_PUB_KEY=${{ env.RS_PUB_KEY }}" >> $GITHUB_ENV
 
-      - name: Restore signing keystore
+      - name: Setup signing keystore
         env:
           KEYSTORE_BASE64:   ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/axentra-release.jks
-          # PKCS12: storePassword y keyPassword son la misma clave
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "No keystore in secrets -- generating with JDK 17..."
+            keytool -genkey -v \
+              -keystore /tmp/axentra-release.jks \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
+              -dname "CN=Axentra, O=TecSolucionesInformaticas, C=AR"
+            B64=$(base64 -w 0 /tmp/axentra-release.jks)
+            echo "## Primer build: guarda el keystore como KEYSTORE_BASE64 en GitHub Secrets" >> $GITHUB_STEP_SUMMARY
+            echo "Copia este valor y guardalo como secret \`KEYSTORE_BASE64\` para que futuros builds reusen la misma clave:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$B64" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Restaurando keystore desde secrets..."
+            echo "$KEYSTORE_BASE64" | base64 -d > /tmp/axentra-release.jks
+          fi
           cat > flutter/android/key.properties << EOF
           storePassword=${KEYSTORE_PASSWORD}
           keyPassword=${KEYSTORE_PASSWORD}
