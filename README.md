@@ -36,11 +36,11 @@ Conectate a tu computadora de trabajo desde tu casa, o a tu PC personal desde cu
 
 Los instaladores están disponibles en la sección [**Releases**](../../releases) de este repositorio.
 
-| Sistema | Archivo |
-|---------|---------|
-| Windows | `Axentra-windows-x64.exe` |
-| Linux   | `Axentra-linux-x64.deb` |
-| Android | `Axentra-android.apk` |
+| Sistema | Descarga |
+|---------|----------|
+| Windows | [Axentra-windows-x64-install.exe](https://github.com/tecsolucionesinformaticas/axentra/releases/latest/download/Axentra-windows-x64-install.exe) |
+| Linux   | [Axentra-linux-x64.deb](https://github.com/tecsolucionesinformaticas/axentra/releases/latest/download/Axentra-linux-x64.deb) |
+| Android | [Axentra-android.apk](https://github.com/tecsolucionesinformaticas/axentra/releases/latest/download/Axentra-android.apk) |
 
 ---
 

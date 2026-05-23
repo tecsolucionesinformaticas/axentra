@@ -20,8 +20,7 @@ on:
 env:
   RUST_VERSION:     "1.75.0"
   FLUTTER_VERSION:  "3.24.5"
-  # Servidor de relay de producción (HTTPS/dominio público)
-  # Para compilar contra el servidor local, cambiar a 192.168.50.90
+  # Servidor de relay de producción
   RELAY_HOST:       "axentra.tecsi.com.ar"
   RS_PUB_KEY:       "VLa5UxjSXPkamb9GobGprrAYiTDaELHqppLKeOPI+Yg="
   APP_NAME:         "Axentra"
@@ -367,11 +366,16 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: android-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: android-cargo-
+            ~/.cargo/bin/cargo-ndk
+            target/aarch64-linux-android
+          key: android-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: android-cargo-${{ env.RUST_VERSION }}-
 
       - name: Install cargo-ndk
-        run: cargo install cargo-ndk --version "^3" --locked
+        run: |
+          if ! command -v cargo-ndk &>/dev/null; then
+            cargo install cargo-ndk --version "^3" --locked
+          fi
 
       - name: Setup Android NDK r25c
         uses: nttld/setup-ndk@v1
@@ -505,7 +509,7 @@ jobs:
             ## ${{ env.APP_NAME }} ${{ github.ref_name }}
             Servidor: `${{ env.RELAY_HOST }}`
           files: |
-            artifacts/${{ env.APP_NAME }}-linux-x64/${{ env.APP_NAME }}-linux-x64
+            artifacts/${{ env.APP_NAME }}-linux-x64/${{ env.APP_NAME }}-linux-x64.deb
             artifacts/${{ env.APP_NAME }}-windows-x64/*.exe
             artifacts/${{ env.APP_NAME }}-android/${{ env.APP_NAME }}-android.apk
           draft: false
