@@ -382,7 +382,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("xdp-portal-unavailable", ""),
         ("JumpLink", "Перегляд"),
         ("Please Select the screen to be shared(Operate on the peer side).", "Будь ласка, виберіть екран, до якого потрібно надати доступ (на віддаленому пристрої)."),
-        ("Show RustDesk", "Показати RustDesk"),
+        ("Show Axentra", "Показати Axentra"),
         ("This PC", "Цей ПК"),
         ("or", "чи"),
         ("Elevate", "Розширення прав"),

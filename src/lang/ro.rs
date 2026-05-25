@@ -382,7 +382,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("xdp-portal-unavailable", "Portalul XDG Desktop nu este disponibil. Asigură-te că rulezi o sesiune Wayland cu suport pentru portal."),
         ("JumpLink", "Afișează"),
         ("Please Select the screen to be shared(Operate on the peer side).", "Partajează ecranul care urmează să fie partajat (operează din partea dispozitivului pereche)."),
-        ("Show RustDesk", "Afișează RustDesk"),
+        ("Show Axentra", "Afișează Axentra"),
         ("This PC", "Acest PC"),
         ("or", "sau"),
         ("Elevate", "Sporește privilegii"),
