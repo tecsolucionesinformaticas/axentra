@@ -342,7 +342,7 @@ def build_flutter_deb(version, features):
     system2(
         'cp ../res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
     system2(
-        'cp ../res/rustdesk-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
+        'cp ../res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
     system2(
         'cp ../res/startwm.sh tmpdeb/etc/axentra/')
     system2(
@@ -385,7 +385,7 @@ def build_deb_from_folder(version, binary_folder):
     system2(
         'cp ../res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
     system2(
-        'cp ../res/rustdesk-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
+        'cp ../res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
     system2(
         "echo \"#!/bin/sh\" >> tmpdeb/usr/share/axentra/files/polkit && chmod a+x tmpdeb/usr/share/axentra/files/polkit")
 
@@ -614,7 +614,7 @@ def main():
                 system2(
                     'cp res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
                 system2(
-                    'cp res/rustdesk-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
+                    'cp res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
                 os.system('mkdir -p tmpdeb/etc/axentra/')
                 os.system('cp -a res/startwm.sh tmpdeb/etc/axentra/')
                 os.system('mkdir -p tmpdeb/etc/X11/rustdesk/')

@@ -5,12 +5,16 @@ authors = ["rustdesk <info@rustdesk.com>"]
 edition = "2021"
 build= "build.rs"
 description = "Axentra Remote Desktop"
-default-run = "rustdesk"
+default-run = "axentra"
 rust-version = "1.75"
 
 [lib]
 name = "librustdesk"
 crate-type = ["cdylib", "staticlib", "rlib"]
+
+[[bin]]
+name = "axentra"
+path = "src/main.rs"
 
 [[bin]]
 name = "naming"
@@ -216,7 +220,7 @@ libxdo-sys = { path = "libs/libxdo-sys-stub" }
 LegalCopyright = "Copyright © 2025 Purslane Ltd. All rights reserved."
 ProductName = "Axentra"
 FileDescription = "Axentra Remote Desktop"
-OriginalFilename = "rustdesk.exe"
+OriginalFilename = "axentra.exe"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1"

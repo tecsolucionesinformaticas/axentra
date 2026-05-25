@@ -26,19 +26,19 @@ The best open-source remote desktop client software, written in Rust.
 
 mkdir -p "%{buildroot}/usr/share/rustdesk" && cp -r ${HBB}/flutter/build/linux/x64/release/bundle/* -t "%{buildroot}/usr/share/rustdesk"
 mkdir -p "%{buildroot}/usr/bin"
-install -Dm 644 $HBB/res/rustdesk.service -t "%{buildroot}/usr/share/rustdesk/files"
-install -Dm 644 $HBB/res/rustdesk.desktop -t "%{buildroot}/usr/share/rustdesk/files"
-install -Dm 644 $HBB/res/rustdesk-link.desktop -t "%{buildroot}/usr/share/rustdesk/files"
+install -Dm 644 $HBB/res/rustdesk.service -t "%{buildroot}/usr/share/axentra/files"
+install -Dm 644 $HBB/res/rustdesk.desktop -t "%{buildroot}/usr/share/axentra/files"
+install -Dm 644 $HBB/res/axentra-link.desktop -t "%{buildroot}/usr/share/axentra/files"
 install -Dm 644 $HBB/res/128x128@2x.png "%{buildroot}/usr/share/icons/hicolor/256x256/apps/rustdesk.png"
 install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scalable/apps/rustdesk.svg"
 
 %files
 /usr/share/rustdesk/*
-/usr/share/rustdesk/files/rustdesk.service
+/usr/share/axentra/files/rustdesk.service
 /usr/share/icons/hicolor/256x256/apps/rustdesk.png
 /usr/share/icons/hicolor/scalable/apps/rustdesk.svg
-/usr/share/rustdesk/files/rustdesk.desktop
-/usr/share/rustdesk/files/rustdesk-link.desktop
+/usr/share/axentra/files/rustdesk.desktop
+/usr/share/axentra/files/axentra-link.desktop
 
 %changelog
 # let's skip this for now
@@ -56,9 +56,9 @@ case "$1" in
 esac
 
 %post
-cp /usr/share/rustdesk/files/rustdesk.service /etc/systemd/system/rustdesk.service
-cp /usr/share/rustdesk/files/rustdesk.desktop /usr/share/applications/
-cp /usr/share/rustdesk/files/rustdesk-link.desktop /usr/share/applications/
+cp /usr/share/axentra/files/rustdesk.service /etc/systemd/system/rustdesk.service
+cp /usr/share/axentra/files/rustdesk.desktop /usr/share/applications/
+cp /usr/share/axentra/files/axentra-link.desktop /usr/share/applications/
 ln -sf /usr/share/rustdesk/rustdesk /usr/bin/rustdesk
 systemctl daemon-reload
 systemctl enable rustdesk
@@ -87,7 +87,7 @@ case "$1" in
     rmdir /usr/local/rustdesk || true
     rmdir /usr/share/rustdesk || true
     rm /usr/share/applications/rustdesk.desktop || true
-    rm /usr/share/applications/rustdesk-link.desktop || true
+    rm /usr/share/applications/axentra-link.desktop || true
     update-desktop-database
   ;;
   1)
