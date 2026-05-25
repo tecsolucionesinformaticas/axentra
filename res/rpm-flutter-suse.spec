@@ -27,7 +27,7 @@ The best open-source remote desktop client software, written in Rust.
 mkdir -p "%{buildroot}/usr/share/rustdesk" && cp -r ${HBB}/flutter/build/linux/x64/release/bundle/* -t "%{buildroot}/usr/share/rustdesk"
 mkdir -p "%{buildroot}/usr/bin"
 install -Dm 644 $HBB/res/rustdesk.service -t "%{buildroot}/usr/share/axentra/files"
-install -Dm 644 $HBB/res/rustdesk.desktop -t "%{buildroot}/usr/share/axentra/files"
+install -Dm 644 $HBB/res/axentra.desktop -t "%{buildroot}/usr/share/axentra/files"
 install -Dm 644 $HBB/res/axentra-link.desktop -t "%{buildroot}/usr/share/axentra/files"
 install -Dm 644 $HBB/res/128x128@2x.png "%{buildroot}/usr/share/icons/hicolor/256x256/apps/rustdesk.png"
 install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scalable/apps/rustdesk.svg"
@@ -37,7 +37,7 @@ install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scal
 /usr/share/axentra/files/rustdesk.service
 /usr/share/icons/hicolor/256x256/apps/rustdesk.png
 /usr/share/icons/hicolor/scalable/apps/rustdesk.svg
-/usr/share/axentra/files/rustdesk.desktop
+/usr/share/axentra/files/axentra.desktop
 /usr/share/axentra/files/axentra-link.desktop
 
 %changelog
@@ -57,7 +57,7 @@ esac
 
 %post
 cp /usr/share/axentra/files/rustdesk.service /etc/systemd/system/rustdesk.service
-cp /usr/share/axentra/files/rustdesk.desktop /usr/share/applications/
+cp /usr/share/axentra/files/axentra.desktop /usr/share/applications/
 cp /usr/share/axentra/files/axentra-link.desktop /usr/share/applications/
 ln -sf /usr/share/rustdesk/rustdesk /usr/bin/rustdesk
 systemctl daemon-reload
@@ -86,7 +86,7 @@ case "$1" in
     rmdir /usr/lib/rustdesk || true
     rmdir /usr/local/rustdesk || true
     rmdir /usr/share/rustdesk || true
-    rm /usr/share/applications/rustdesk.desktop || true
+    rm /usr/share/applications/axentra.desktop || true
     rm /usr/share/applications/axentra-link.desktop || true
     update-desktop-database
   ;;

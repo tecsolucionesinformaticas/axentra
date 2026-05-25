@@ -340,7 +340,7 @@ def build_flutter_deb(version, features):
     system2(
         'cp ../res/scalable.svg tmpdeb/usr/share/icons/hicolor/scalable/apps/axentra.svg')
     system2(
-        'cp ../res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
+        'cp ../res/axentra.desktop tmpdeb/usr/share/applications/axentra.desktop')
     system2(
         'cp ../res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
     system2(
@@ -383,7 +383,7 @@ def build_deb_from_folder(version, binary_folder):
     system2(
         'cp ../res/scalable.svg tmpdeb/usr/share/icons/hicolor/scalable/apps/axentra.svg')
     system2(
-        'cp ../res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
+        'cp ../res/axentra.desktop tmpdeb/usr/share/applications/axentra.desktop')
     system2(
         'cp ../res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
     system2(
@@ -612,7 +612,7 @@ def main():
                 system2(
                     'cp res/scalable.svg tmpdeb/usr/share/icons/hicolor/scalable/apps/axentra.svg')
                 system2(
-                    'cp res/rustdesk.desktop tmpdeb/usr/share/applications/axentra.desktop')
+                    'cp res/axentra.desktop tmpdeb/usr/share/applications/axentra.desktop')
                 system2(
                     'cp res/axentra-link.desktop tmpdeb/usr/share/applications/axentra-link.desktop')
                 os.system('mkdir -p tmpdeb/etc/axentra/')
