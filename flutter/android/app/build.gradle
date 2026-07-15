@@ -102,6 +102,9 @@ android {
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        ndk {
+            arguments "-DANDROID_STL=c++_shared"
+        }
     }
 
     signingConfigs {
